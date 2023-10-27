@@ -78,9 +78,6 @@ jobs:
           KONG_ADMIN_GUI_URL: http://127.0.0.1:8002
           KONG_ONEAPI_APIM_ENVIRONMENT: development
           KONG_DATABASE: postgres
-          KONG_PG_PASSWORD: kongpass
-          KONG_PG_DATABASE: kong
-          KONG_PG_HOST: kong_postgres
         ports:
           - 8080:8080
           - 8001:8001
