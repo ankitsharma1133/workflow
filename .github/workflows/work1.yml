@@ -56,7 +56,6 @@ jobs:
           KONG_PG_PASSWORD: kongpass
           KONG_PG_DATABASE: kong
           KONG_PG_HOST: kong_postgres
-        command: kong migrations bootstrap
         # healthcheck:
         #   test: ["CMD", "kong", "health"]
         #   interval: 60s
