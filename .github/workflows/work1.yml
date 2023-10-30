@@ -90,7 +90,11 @@ jobs:
           --health-interval 10s 
           --health-timeout 5s 
           --health-retries 5
+    
     steps:
+      - name: Run Kong Migrations
+        run: docker exec kong_main kong migrations bootstrap
+        
       - name: Checkout GitHub Action
         uses: actions/checkout@v2
 
