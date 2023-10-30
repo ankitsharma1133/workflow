@@ -56,6 +56,8 @@ jobs:
           KONG_PG_PASSWORD: kongpass
           KONG_PG_DATABASE: kong
           KONG_PG_HOST: kong_postgres
+        ports:
+          - '8000:8000'
         # healthcheck:
         #   test: ["CMD", "kong", "health"]
         #   interval: 60s
@@ -93,7 +95,13 @@ jobs:
     
     steps:
       - name: Run Kong Migrations
-        run: docker exec kong_main kong migrations bootstrap
+        run: docker exec kong_migration kong migrations bootstrap
+        env:
+          KONG_DATABASE: postgres
+          KONG_PG_USER: kong
+          KONG_PG_PASSWORD: kongpass
+          KONG_PG_DATABASE: kong
+          KONG_PG_HOST: kong_postgres
         
       - name: Checkout GitHub Action
         uses: actions/checkout@v2
