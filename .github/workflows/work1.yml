@@ -58,11 +58,12 @@ jobs:
       - name: Start Kong Migration Container
         run: docker run -d --name kong_migration --user root -e KONG_DATABASE=$KONG_DATABASE -e KONG_PG_USER=$KONG_PG_USER -e KONG_PG_PASSWORD=$KONG_PG_PASSWORD -e KONG_PG_DATABASE=$KONG_PG_DATABASE -e KONG_PG_HOST=$KONG_PG_HOST kong/kong-gateway:3.1.1.3
 
-      # - name: Wait for Kong Migration
-      #   run: |
-      #     until docker exec kong_migration kong migrations list; do
-      #       sleep 1
-      #     done
+      - name: Wait for Kong Database to be ready
+        run: |
+          until docker exec kong_migration kong migrations list; do
+            sleep 1
+          done
+
       - name: Wait for PostgreSQL to be ready
         run: docker ps 
 
