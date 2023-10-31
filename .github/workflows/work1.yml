@@ -31,9 +31,12 @@ jobs:
     steps:
       - name: Checkout GitHub Action
         uses: actions/checkout@v2
-
+        
+      - name: Create a network for the services
+        run: docker network create ekyc_network
+        
       - name: Start PostgreSQL Container
-        run: docker run -d --name ekyc_postgres1 -p 5432:5432 -e POSTGRES_USER=$POSTGRES_USER -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD -e POSTGRES_DB=$POSTGRES_DB postgres:11
+        run: docker run -d --name ekyc_postgres1 -p 5432:5432 --network ekyc_network -e POSTGRES_USER=$POSTGRES_USER -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD -e POSTGRES_DB=$POSTGRES_DB postgres:11
 
       - name: Wait for PostgreSQL to be ready
         run: |
@@ -43,7 +46,7 @@ jobs:
 
 
       - name: Start Kong Database Container
-        run: docker run -d --name kong_postgres -p 5000:5432 -e POSTGRES_USER=$KONG_PG_USER -e POSTGRES_PASSWORD=$KONG_PG_PASSWORD -e POSTGRES_DB=$KONG_PG_DATABASE postgres:13
+        run: docker run -d --name kong_postgres -p 5000:5432 --network ekyc_network -e POSTGRES_USER=$KONG_PG_USER -e POSTGRES_PASSWORD=$KONG_PG_PASSWORD -e POSTGRES_DB=$KONG_PG_DATABASE postgres:13
 
 
 
@@ -60,7 +63,7 @@ jobs:
 
       - name: Start Kong Migration Container
         run: |
-          docker run --name kong_migration --user root \
+          docker run --name kong_migration --user root --network ekyc_network \
           -e KONG_DATABASE=$KONG_DATABASE \
           -e KONG_PG_USER=$KONG_PG_USER \
           -e KONG_PG_PASSWORD=$KONG_PG_PASSWORD \
@@ -85,7 +88,7 @@ jobs:
       #   run: docker exec kong_migration kong migrations bootstrap
 
       - name: Start Kong Container
-        run: docker run --name kong -p 8080:8080 -p 8001:8001 -p 8002:8002 -p 8003:8003 -p 8443:8443 -p 8444:8444 -p 8445:8445 -e KONG_LOG_LEVEL=$KONG_LOG_LEVEL -e KONG_PG_USER=$KONG_PG_USER -e KONG_PG_PASSWORD=$KONG_PG_PASSWORD -e KONG_PG_DATABASE=$KONG_PG_DATABASE -e KONG_PG_HOST=$KONG_PG_HOST -e KONG_PROXY_ACCESS_LOG=$KONG_PROXY_ACCESS_LOG -e KONG_ADMIN_ACCESS_LOG=$KONG_ADMIN_ACCESS_LOG -e KONG_PROXY_ERROR_LOG=$KONG_PROXY_ERROR_LOG -e KONG_ADMIN_ERROR_LOG=$KONG_ADMIN_ERROR_LOG -e KONG_ADMIN_LISTEN=$KONG_ADMIN_LISTEN -e KONG_ADMIN_GUI_URL=$KONG_ADMIN_GUI_URL -e KONG_ONEAPI_APIM_ENVIRONMENT=$KONG_ONEAPI_APIM_ENVIRONMENT kong/kong-gateway:3.1.1.3
+        run: docker run --name kong -p 8080:8080 -p 8001:8001 -p 8002:8002 -p 8003:8003 -p 8443:8443 -p 8444:8444 -p 8445:8445 --network ekyc_network -e KONG_LOG_LEVEL=$KONG_LOG_LEVEL -e KONG_PG_USER=$KONG_PG_USER -e KONG_PG_PASSWORD=$KONG_PG_PASSWORD -e KONG_PG_DATABASE=$KONG_PG_DATABASE -e KONG_PG_HOST=$KONG_PG_HOST -e KONG_PROXY_ACCESS_LOG=$KONG_PROXY_ACCESS_LOG -e KONG_ADMIN_ACCESS_LOG=$KONG_ADMIN_ACCESS_LOG -e KONG_PROXY_ERROR_LOG=$KONG_PROXY_ERROR_LOG -e KONG_ADMIN_ERROR_LOG=$KONG_ADMIN_ERROR_LOG -e KONG_ADMIN_LISTEN=$KONG_ADMIN_LISTEN -e KONG_ADMIN_GUI_URL=$KONG_ADMIN_GUI_URL -e KONG_ONEAPI_APIM_ENVIRONMENT=$KONG_ONEAPI_APIM_ENVIRONMENT kong/kong-gateway:3.1.1.3
 
 
         
