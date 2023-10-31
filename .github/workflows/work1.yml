@@ -1,29 +1,21 @@
 name: GitHub Actions Services
+
 on:
   push:
     branches:
       - main
-env:
-  APP_NAME: ekyc-api
-  APP_NAMESPACE: ekyc
-  ONEAPI_APP_ID: 9708287b-6fe2-4c00-b5a5-c20d35d62e73
+
 jobs:
-  test:
+  ekyc_services:
     runs-on: ubuntu-latest
-    env:
-      ALLOWED_HOSTS: "127.0.0.1,localhost"
-      SECRET_KEY: "abc1234"
-      DEBUG_MODE: "True"
-      ROOT_LOG_LEVEL: "DEBUG"
-      LOCAL: "True"
-      DB_USER: ekycdbuser
-      DB_PASSWORD: postgres1234
-      DB_NAME: ekyc_test
-      X_CLAIMS: ${{ secrets.X_CLAIMS }}
-      KONG_ONEAPI_SIGNING_KEY: ${{ secrets.KONG_ONEAPI_SIGNING_KEY }}
-      KONG_ADMIN_URL: http://127.0.0.1:8001
+
     services:
-      postgres_main:
+      ekyc_redis:
+        image: redis
+        ports:
+          - 6379:6379
+
+      ekyc_postgres:
         image: postgres:11
         env:
           POSTGRES_USER: kong
@@ -31,36 +23,22 @@ jobs:
           POSTGRES_DB: kong
         ports:
           - 5432:5432
-        options: >-
-          --health-cmd pg_isready 
-          --health-interval 10s 
-          --health-timeout 5s 
-          --health-retries 5
-      redis_main:
-        image: redis:7
-        ports:
-          - 6379:6379
+        volumes:
+          - pgdata:/var/lib/postgresql/data
+
       kong_db:
-        image: 'postgres:13'
-        env: 
+        image: postgres:13
+        env:
           POSTGRES_USER: kong
           POSTGRES_PASSWORD: kongpass
           POSTGRES_DB: kong
         ports:
-          - '5000:5432'
+          - 5000:5432
+        volumes:
+          - kongdata:/var/lib/postgresql/data
+
       kong_migration:
-        image: 'kong/kong-gateway:3.1.1.3'
-        env:
-          KONG_DATABASE: postgres
-          KONG_PG_USER: kong
-          KONG_PG_PASSWORD: kongpass
-          KONG_PG_DATABASE: kong
-          KONG_PG_HOST: kong_postgres
-        ports:
-          - '8000:8000'
-    steps:
-      - name: Run Kong Migrations
-        run: docker exec kong_migration kong migrations bootstrap
+        image: kong/kong-gateway:3.1.1.3
         env:
           KONG_DATABASE: postgres
           KONG_PG_USER: kong
@@ -68,10 +46,40 @@ jobs:
           KONG_PG_DATABASE: kong
           KONG_PG_HOST: kong_postgres
 
+      kong:
+        image: kong/kong-gateway:3.1.1.3
+        ports:
+          - 8080:8080
+          - 8001:8001
+          - 8002:8002
+          - 8003:8003
+          - 8443:8443
+          - 8444:8444
+          - 8445:8445
+        env:
+          KONG_LOG_LEVEL: info
+          KONG_PG_USER: kong
+          KONG_PG_PASSWORD: kongpass
+          KONG_PG_DATABASE: kong
+          KONG_PG_HOST: kong_postgres
+          KONG_PROXY_ACCESS_LOG: /dev/stdout
+          KONG_ADMIN_ACCESS_LOG: /dev/stdout
+          KONG_PROXY_ERROR_LOG: /dev/stderr
+          KONG_ADMIN_ERROR_LOG: /dev/stderr
+          KONG_ADMIN_LISTEN: 0.0.0.0:8001
+          KONG_ADMIN_GUI_URL: http://127.0.0.1:8002
+          KONG_DATABASE: postgres
+
+    steps:
       - name: Checkout GitHub Action
         uses: actions/checkout@v2
 
-      - name: Setup Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.8
+      - name: Setup PostgreSQL
+        run: docker exec ekyc_postgres1 pg_isready -U kong -d kong
+
+      - name: Setup Kong Database
+        run: docker exec kong_postgres pg_isready -U kong -d kong
+
+      - name: Wait for Kong Migration
+        run: docker exec kong_migration kong migrations up
+
