@@ -70,8 +70,7 @@ jobs:
         run: docker ps 
 
       - name: Start Kong Container
-        run: docker run  -d --name kong -p 8080:8080 -p 8001:8001 -p 8002:8002 -p 8003:8003 -p 8443:8443 -p 8444:8444 -p 8445:8445 \
-             --network ekyc_network \
+        run: docker run  -d --name kong -p 8080:8080 -p 8001:8001 -p 8002:8002 -p 8003:8003 -p 8443:8443 -p 8444:8444 -p 8445:8445 --network ekyc_network \
              -e KONG_LOG_LEVEL=$KONG_LOG_LEVEL \
              -e KONG_PG_USER=$KONG_PG_USER \
              -e KONG_PG_PASSWORD=$KONG_PG_PASSWORD \
