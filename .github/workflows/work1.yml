@@ -9,77 +9,55 @@ jobs:
   ekyc_services:
     runs-on: ubuntu-latest
 
-    services:
-      ekyc_redis:
-        image: redis
-        ports:
-          - 6379:6379
-
-      ekyc_postgres:
-        image: postgres:11
-        env:
-          POSTGRES_USER: kong
-          POSTGRES_PASSWORD: kong
-          POSTGRES_DB: kong
-        ports:
-          - 5432:5432
-        volumes:
-          - pgdata:/var/lib/postgresql/data
-
-      kong_db:
-        image: postgres:13
-        env:
-          POSTGRES_USER: kong
-          POSTGRES_PASSWORD: kongpass
-          POSTGRES_DB: kong
-        ports:
-          - 5000:5432
-        volumes:
-          - kongdata:/var/lib/postgresql/data
-
-      kong_migration:
-        image: kong/kong-gateway:3.1.1.3
-        env:
-          KONG_DATABASE: postgres
-          KONG_PG_USER: kong
-          KONG_PG_PASSWORD: kongpass
-          KONG_PG_DATABASE: kong
-          KONG_PG_HOST: kong_postgres
-
-      kong:
-        image: kong/kong-gateway:3.1.1.3
-        ports:
-          - 8080:8080
-          - 8001:8001
-          - 8002:8002
-          - 8003:8003
-          - 8443:8443
-          - 8444:8444
-          - 8445:8445
-        env:
-          KONG_LOG_LEVEL: info
-          KONG_PG_USER: kong
-          KONG_PG_PASSWORD: kongpass
-          KONG_PG_DATABASE: kong
-          KONG_PG_HOST: kong_postgres
-          KONG_PROXY_ACCESS_LOG: /dev/stdout
-          KONG_ADMIN_ACCESS_LOG: /dev/stdout
-          KONG_PROXY_ERROR_LOG: /dev/stderr
-          KONG_ADMIN_ERROR_LOG: /dev/stderr
-          KONG_ADMIN_LISTEN: 0.0.0.0:8001
-          KONG_ADMIN_GUI_URL: http://127.0.0.1:8002
-          KONG_DATABASE: postgres
+    env:
+      KONG_DATABASE: postgres
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: kongpass
+      KONG_PG_DATABASE: kong
+      KONG_PG_HOST: kong_postgres
+      POSTGRES_USER: kong
+      POSTGRES_PASSWORD: kongpass
+      POSTGRES_DB: kong
+      KONG_LOG_LEVEL: info
+      DB_USER: ekycdbowner
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
+      KONG_ADMIN_GUI_URL: http://localhost:8002
+      KONG_ONEAPI_APIM_ENVIRONMENT: development
 
     steps:
       - name: Checkout GitHub Action
         uses: actions/checkout@v2
 
-      - name: Setup PostgreSQL
-        run: docker exec ekyc_postgres1 pg_isready -U kong -d kong
+      - name: Start PostgreSQL Container
+        run: docker run -d --name ekyc_postgres1 -p 5432:5432 -e POSTGRES_USER=$POSTGRES_USER -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD -e POSTGRES_DB=$POSTGRES_DB postgres:11
 
-      - name: Setup Kong Database
-        run: docker exec kong_postgres pg_isready -U kong -d kong
+      - name: Wait for PostgreSQL to be ready
+        run: |
+          until docker exec ekyc_postgres1 pg_isready -U $POSTGRES_USER -d $POSTGRES_DB; do
+            sleep 1
+          done
+
+      - name: Start Kong Database Container
+        run: docker run -d --name kong_postgres -p 5000:5432 -e POSTGRES_USER=$KONG_PG_USER -e POSTGRES_PASSWORD=$KONG_PG_PASSWORD -e POSTGRES_DB=$KONG_PG_DATABASE postgres:13
+
+      - name: Wait for Kong Database to be ready
+        run: |
+          until docker exec kong_postgres pg_isready -U $KONG_PG_USER -d $KONG_PG_DATABASE; do
+            sleep 1
+          done
+
+      - name: Start Kong Migration Container
+        run: docker run -d --name kong_migration --user root -e KONG_DATABASE=$KONG_DATABASE -e KONG_PG_USER=$KONG_PG_USER -e KONG_PG_PASSWORD=$KONG_PG_PASSWORD -e KONG_PG_DATABASE=$KONG_PG_DATABASE -e KONG_PG_HOST=$KONG_PG_HOST kong/kong-gateway:3.1.1.3 kong migrations bootstrap
 
       - name: Wait for Kong Migration
-        run: docker exec kong_migration kong migrations up
+        run: |
+          until docker exec kong_migration kong migrations list; do
+            sleep 1
+          done
 
+      - name: Start Kong Container
+        run: docker run -d --name kong -p 8080:8080 -p 8001:8001 -p 8002:8002 -p 8003:8003 -p 8443:8443 -p 8444:8444 -p 8445:8445 -e KONG_LOG_LEVEL=$KONG_LOG_LEVEL -e KONG_PG_USER=$KONG_PG_USER -e KONG_PG_PASSWORD=$KONG_PG_PASSWORD -e KONG_PG_DATABASE=$KONG_PG_DATABASE -e KONG_PG_HOST=$KONG_PG_HOST -e KONG_PROXY_ACCESS_LOG=$KONG_PROXY_ACCESS_LOG -e KONG_ADMIN_ACCESS_LOG=$KONG_ADMIN_ACCESS_LOG -e KONG_PROXY_ERROR_LOG=$KONG_PROXY_ERROR_LOG -e KONG_ADMIN_ERROR_LOG=$KONG_ADMIN_ERROR_LOG -e KONG_ADMIN_LISTEN=$KONG_ADMIN_LISTEN -e KONG_ADMIN_GUI_URL=$KONG_ADMIN_GUI_URL -e KONG_ONEAPI_APIM_ENVIRONMENT=$KONG_ONEAPI_APIM_ENVIRONMENT kong/kong-gateway:3.1.1.3
