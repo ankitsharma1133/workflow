@@ -41,9 +41,14 @@ jobs:
             sleep 1
           done
 
+
       - name: Start Kong Database Container
         run: docker run -d --name kong_postgres -p 5000:5432 -e POSTGRES_USER=$KONG_PG_USER -e POSTGRES_PASSWORD=$KONG_PG_PASSWORD -e POSTGRES_DB=$KONG_PG_DATABASE postgres:13
 
+      - name: Wait for PostgreSQL to be ready
+        run: docker ps 
+
+          
       - name: Wait for Kong Database to be ready
         run: |
           until docker exec kong_postgres pg_isready -U $KONG_PG_USER -d $KONG_PG_DATABASE; do
