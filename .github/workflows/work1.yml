@@ -68,11 +68,11 @@ jobs:
           -e KONG_PG_HOST=kong_postgres \
           kong/kong-gateway:3.1.1.3 kong migrations bootstrap
 
-      - name: Wait for Kong Database to be ready
-        run: |
-          until docker exec kong_migration kong migrations list; do
-            sleep 1
-          done
+      # - name: Wait for Kong Database to be ready
+      #   run: |
+      #     until docker exec kong_migration kong migrations list; do
+      #       sleep 1
+      #     done
 
       - name: Wait for PostgreSQL to be ready
         run: docker ps 
